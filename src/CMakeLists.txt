@@ -4,5 +4,5 @@ project(custom_ops)
 find_package(Torch REQUIRED)
 
 add_executable(example-app example-app.cpp)
-target_link_libraries(example-app "${TORCH_LIBRARIES}")
+target_link_libraries(example-app g2pk "${TORCH_LIBRARIES}")
 set_property(TARGET example-app PROPERTY CXX_STANDARD 14)
