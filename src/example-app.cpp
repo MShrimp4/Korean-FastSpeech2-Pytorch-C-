@@ -157,50 +157,53 @@ int main(int argc, const char* argv[]) {
 
   std::cout << "ok\n";
 
-  G2PK::G2K g2pk = G2PK::G2K ();
-  std::wstring_convert <std::codecvt_utf8<char32_t>, char32_t> wconv_to32;
-
-  std::string input = u8"여기에 텍스트 입력";
-
-  std::cout << input << std::endl;
-
-  std::string decomposed = g2pk.decompose(g2pk.convert(input));
-  std::u32string conv_input = wconv_to32.from_bytes(decomposed.data());
-  std::vector<int> input_vec = conv_str (conv_input);
-  std::vector<int> len_vec = {input_vec.size()};
-  at::Tensor input_tensor = torch::tensor(input_vec).unsqueeze(0);
-  at::Tensor len_tensor = torch::tensor(len_vec);
-
-  std::cout << input_tensor << std::endl;
-
   c10::InferenceMode guard;
+  G2PK::G2K g2pk = G2PK::G2K ();
 
-  // Create a vector of inputs.
-  std::vector<torch::jit::IValue> input_fs;
-  input_fs.push_back(input_tensor);
-  input_fs.push_back(len_tensor);
+  std::string input = "";
+  while (true) {
+    std::cout << "여기에 텍스트 입력:" << std::endl;
 
-  // Execute the model and turn its output into a tensor.
-  at::Tensor output_fs = fastspeech.forward(input_fs).toTensor();
-  //std::cout << output_fs << std::endl;
+    std::getline (std::cin, input);
 
-  std::vector<torch::jit::IValue> input_vg;
-  output_fs = de_norm(output_fs, mean_mel, std_mel);
-  input_vg.push_back(output_fs.transpose(1,2));
+    std::cout << "원본 텍스트:" << input << std::endl;
 
-  at::Tensor output_vg = vocgan.forward(input_vg).toTensor();
-  output_vg = output_vg.squeeze();
-  int64_t len = at::size(output_vg, 0);
-  output_vg = output_vg.narrow(0, 0, len - HOP_LENGTH * 10);
-  output_vg *= MAX_WAV_VALUE;
-  output_vg = output_vg.clamp(-MAX_WAV_VALUE, MAX_WAV_VALUE-1);
-  output_vg = output_vg.toType(at::kShort);
+    std::u32string decomposed = g2pk.decompose(G2PK::u8_to_u32(g2pk.convert(input)));
+    std::vector<int> input_vec = conv_str (decomposed);
+    std::vector<int> len_vec = {(int) input_vec.size()};
+    at::Tensor input_tensor = torch::tensor(input_vec).unsqueeze(0);
+    at::Tensor len_tensor = torch::tensor(len_vec);
 
-  //std::cout << output_vg << std::endl;
+    std::cout << input_tensor << std::endl;
 
-  output_vg = output_vg.contiguous();
-  std::vector<int16_t> v(output_vg.data_ptr<int16_t>(),
-                         output_vg.data_ptr<int16_t>() + output_vg.numel());
+    // Create a vector of inputs.
+    std::vector<torch::jit::IValue> input_fs;
+    input_fs.push_back(input_tensor);
+    input_fs.push_back(len_tensor);
 
-  create_wav(v, "test.wav");
+    // Execute the model and turn its output into a tensor.
+    at::Tensor output_fs = fastspeech.forward(input_fs).toTensor();
+    //std::cout << output_fs << std::endl;
+
+    std::vector<torch::jit::IValue> input_vg;
+    output_fs = de_norm(output_fs, mean_mel, std_mel);
+    input_vg.push_back(output_fs.transpose(1,2));
+
+    at::Tensor output_vg = vocgan.forward(input_vg).toTensor();
+    output_vg = output_vg.squeeze();
+    int64_t len = at::size(output_vg, 0);
+    output_vg = output_vg.narrow(0, 0, len - HOP_LENGTH * 10);
+    output_vg *= MAX_WAV_VALUE;
+    output_vg = output_vg.clamp(-MAX_WAV_VALUE, MAX_WAV_VALUE-1);
+    output_vg = output_vg.toType(at::kShort);
+
+    //std::cout << output_vg << std::endl;
+
+    output_vg = output_vg.contiguous();
+    std::vector<int16_t> v(output_vg.data_ptr<int16_t>(),
+                           output_vg.data_ptr<int16_t>() + output_vg.numel());
+
+    create_wav(v, "test.wav");
+  }
+
 }
