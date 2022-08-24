@@ -1,5 +1,7 @@
 build/
 *.o
 *.ts
+*.pt
+*.wav
 *~
 *#
